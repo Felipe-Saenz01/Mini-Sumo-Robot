@@ -34,6 +34,7 @@ void setup() {
   pinMode(MOTOR_RIGHT_BACKWARD, OUTPUT);
   
   Serial.begin(9600);
+  delay(4500); // Ajustar el tiempo según la distancia
 }
 
 void loop() {
@@ -49,8 +50,7 @@ void loop() {
 
   
   // Control del movimiento según los sensores TCRT5000
-  // if (isOnWhite(tcrtLeft) || isOnWhite(tcrtRight)) {
-  if (isOnWhite(tcrtLeft)) {
+  if (leftWhite(tcrtLeft)) {
     // Si cualquiera de los sensores detecta blanco, retroceder
     // Serial.println("Retroceder");
     moveBackward();
@@ -72,7 +72,7 @@ void loop() {
     }
   }
 
-  delay(300); // Retardo para estabilidad
+  delay(200); // Retardo para estabilidad
 }
 
 void mostrarTcrt(){
@@ -86,7 +86,10 @@ void mostrarTcrt(){
   Serial.println(isOnWhite(tcrtLeft));
 
 }
-
+bool leftWhite(int sensorValue){
+  // Asumiendo que el valor leído es bajo para blanco y alto para negro
+  return sensorValue > 40;
+}
 
 bool isOnWhite(int sensorValue) {
   // Asumiendo que el valor leído es bajo para blanco y alto para negro
@@ -124,19 +127,21 @@ void moveBackward() {
   analogWrite(MOTOR_RIGHT_FORWARD, 0);
   analogWrite(MOTOR_LEFT_BACKWARD, 255);
   analogWrite(MOTOR_RIGHT_BACKWARD, 255);
+  delay(250); // Ajustar el tiempo según la distancia
+
 }
 
 void searchForObject() {
   // Avanzar una distancia fija
   moveForward();
-  delay(500); // Ajustar el tiempo según la distancia
+  delay(50); // Ajustar el tiempo según la distancia
   
   // Girar para buscar
-  analogWrite(MOTOR_LEFT_FORWARD, 255);
-  analogWrite(MOTOR_RIGHT_FORWARD, 0);
-  analogWrite(MOTOR_LEFT_BACKWARD, 0);
-  analogWrite(MOTOR_RIGHT_BACKWARD, 255);
-  delay(250); // Ajustar el tiempo según el giro necesario
+  analogWrite(MOTOR_LEFT_FORWARD, 0);
+  analogWrite(MOTOR_RIGHT_FORWARD, 255);
+  analogWrite(MOTOR_LEFT_BACKWARD, 255);
+  analogWrite(MOTOR_RIGHT_BACKWARD, 0);
+  delay(150); // Ajustar el tiempo según el giro necesario
   
   // Detener para reevaluar
   analogWrite(MOTOR_LEFT_FORWARD, 0);
