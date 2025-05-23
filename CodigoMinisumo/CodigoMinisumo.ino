@@ -14,7 +14,7 @@
 #define MOTOR_RIGHT_BACKWARD 9
 
 // Pines del DIP switch (configuración pull-up interno)
-#define DIP_SWITCH_ONE_PIN 4   // Pin para controlar giro izquierdo
+#define DIP_SWITCH_ONE_PIN 4  // Pin para controlar giro izquierdo
 #define DIP_SWITCH_TWO_PIN 2  // Pin para controlar giro derecho
 
 int velocidad = 150;
@@ -30,10 +30,10 @@ void setup() {
   // pinMode(TCRT_LEFT_PIN, INPUT);
   // pinMode(TCRT_RIGHT_PIN, INPUT);
   // pinMode(TCRT_BACK_PIN, INPUT);
-  
+
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
-  
+
   pinMode(MOTOR_LEFT_FORWARD, OUTPUT);
   pinMode(MOTOR_LEFT_BACKWARD, OUTPUT);
   pinMode(MOTOR_RIGHT_FORWARD, OUTPUT);
@@ -42,9 +42,9 @@ void setup() {
   // Configura pines del DIP switch como entradas con pull-up
   pinMode(DIP_SWITCH_ONE_PIN, INPUT_PULLUP);
   pinMode(DIP_SWITCH_TWO_PIN, INPUT_PULLUP);
-  
+
   Serial.begin(9600);
-  delay(4500); // Ajustar el tiempo según la distancia
+  delay(4500);  // Ajustar el tiempo según la distancia
 }
 
 void loop() {
@@ -56,139 +56,190 @@ void loop() {
   tcrtBack = 40;
 
   // Leer el sensor ultrasónico
-  distance = readUltrasonicDistance();
+  distance = getFilteredDistance();
 
   // mostrarTcrt();
-  // showDipSwitch();  
+  // showDipSwitch();
 
-  
+
   // Control del movimiento según los sensores TCRT5000
-  if (isOnWhite(tcrtLeft)) {
-    // Si cualquiera de los sensores detecta blanco, retroceder
-    Serial.println("Retroceder");
-    // moveBackward();
-  } else if (isOnWhite(tcrtBack)){
-    // Si el sensor detecta blanco en la parte tracera acelera
-    Serial.println("Avanzar");
-    // moveForward();
-  } else {
-    // Si ambos sensores detectan negro, proceder a evaluar el sensor ultrasónico
-    if (distance <= 20) { // Aumentar el umbral de 20 cm a 50 cm
-      // Si detecta un objeto a menos de 50 cm, avanzar hacia él
-      moveForward();
-      Serial.println("Atacar");
-    } else {
-      // Si no detecta ningún objeto, buscar girando
-      searchForObject();
-      Serial.println("Buscar");
+  if (distance <= 30 && distance > 10) {  // Aumentar el umbral de 20 cm a 50 cm
+    // Si detecta un objeto a menos de 50 cm, avanzar hacia él
+    // Serial.println("Avanzar");
+    moveForward();
+  } else if (distance <= 10) {
+    // Serial.println("Atacar");
+    attackForward();
 
+  } else {
+    // Si no detecta ningún objeto, buscar girando
+    searchForObject();
+    // Serial.println("Buscar");
+  }
+
+    // if (isOnWhite(tcrtLeft)) {
+    //   // Si cualquiera de los sensores detecta blanco, retroceder
+    //   //Serial.println("Retroceder");
+    //   moveBackward();
+    // } else if (isOnWhite(tcrtBack)) {
+    //   // Si el sensor detecta blanco en la parte tracera acelera
+    //   moveForward();
+    // } else {
+    //   // Si ambos sensores detectan negro, proceder a evaluar el sensor ultrasónico
+    // }
+
+    delay(50);  // Retardo para estabilidad
+  }
+
+  void mostrarTcrt() {
+    Serial.print("Back: ");
+    Serial.print(tcrtBack);
+    Serial.print(" - ");
+    Serial.println(isOnWhite(tcrtBack));
+    Serial.print("Left: ");
+    Serial.print(tcrtLeft);
+    Serial.print(" - ");
+    Serial.println(isOnWhite(tcrtLeft));
+  }
+
+  void showDipSwitch() {
+    // Mostrar estado de los switches
+    Serial.print("DIP Status - 1: ");
+    Serial.print(isOneDipEnabled());
+    Serial.print(" | 2: ");
+    Serial.println(isTwoDipEnabled());
+  }
+
+  // Función para leer el estado del DIP switch (invertido por pull-up)
+  bool isOneDipEnabled() {
+    return !digitalRead(DIP_SWITCH_ONE_PIN);  // LOW cuando activado
+  }
+
+  bool isTwoDipEnabled() {
+    return !digitalRead(DIP_SWITCH_TWO_PIN);  // LOW cuando activado
+  }
+
+
+  bool isOnWhite(int sensorValue) {
+    if (isTwoDipEnabled()) {
+      // Asumiendo que el valor leído es bajo para blanco y alto para negro
+      return sensorValue < 40;  // Ajustar según sea necesario
+    } else {
+      // Asumiendo que el valor leído es bajo para blanco y alto para negro
+      return sensorValue < 40;  // Ajustar según sea necesario
     }
   }
 
-  delay(200); // Retardo para estabilidad
-}
+  long readUltrasonicDistance() {
+    // Enviar un pulso de 10 microsegundos para iniciar la medición
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
 
-void mostrarTcrt(){
-  Serial.print("Back: ");
-  Serial.print(tcrtBack );
-  Serial.print(" - ");
-  Serial.println(isOnWhite(tcrtBack));
-  Serial.print("Left: ");
-  Serial.print(tcrtLeft);
-  Serial.print(" - ");
-  Serial.println(isOnWhite(tcrtLeft));
+    // Leer el tiempo de respuesta del eco
+    duration = pulseIn(ECHO_PIN, HIGH);
 
-}
-
-void showDipSwitch(){
-// Mostrar estado de los switches
-  Serial.print("DIP Status - 1: ");
-  Serial.print(isOneDipEnabled());
-  Serial.print(" | 2: ");
-  Serial.println(isTwoDipEnabled());
-}
-
-// Función para leer el estado del DIP switch (invertido por pull-up)
-bool isOneDipEnabled() {
-  return !digitalRead(DIP_SWITCH_ONE_PIN); // LOW cuando activado
-}
-
-bool isTwoDipEnabled() {
-  return !digitalRead(DIP_SWITCH_TWO_PIN); // LOW cuando activado
-}
-
-
-bool isOnWhite(int sensorValue) {
-  if(isTwoDipEnabled() ){
-    // Asumiendo que el valor leído es bajo para blanco y alto para negro
-    return sensorValue < 40; // Ajustar según sea necesario
-  }else {
-    // Asumiendo que el valor leído es bajo para blanco y alto para negro
-    return sensorValue < 40; // Ajustar según sea necesario
-
+    // Convertir el tiempo en distancia
+    distance = (duration / 2) / 29.1;  // Convertir a cm
+    Serial.println("---");
+    Serial.print(distance);
+    Serial.println(" cm");
+    return distance;
   }
-}
 
-long readUltrasonicDistance() {
-  // Enviar un pulso de 10 microsegundos para iniciar la medición
-  digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
-  
-  // Leer el tiempo de respuesta del eco
-  duration = pulseIn(ECHO_PIN, HIGH);
-  
-  // Convertir el tiempo en distancia
-  distance = (duration / 2) / 29.1; // Convertir a cm
-  // Serial.println("---");
-  // Serial.print(distance);
-  // Serial.println(" cm");
-  return distance;
-}
+  int getFilteredDistance() {
+    long sum = 0;
+    for (int i = 0; i < 3; i++) {
+      sum += readUltrasonicDistance();
+      delay(5);  // Breve pausa entre lecturas
+    }
+    return sum / 3;
+  }
 
-void moveForward() {
-  // analogWrite(MOTOR_LEFT_FORWARD, 255);
-  // analogWrite(MOTOR_RIGHT_FORWARD, 255);
-  analogWrite(MOTOR_LEFT_FORWARD, 0);
-  analogWrite(MOTOR_RIGHT_FORWARD, velocidad);
-  analogWrite(MOTOR_RIGHT_BACKWARD, 0);
-  analogWrite(MOTOR_LEFT_BACKWARD, velocidad);
-}
-
-void moveBackward() {
-  analogWrite(MOTOR_LEFT_FORWARD, 0);
-  analogWrite(MOTOR_RIGHT_FORWARD, 0);
-  // analogWrite(MOTOR_LEFT_BACKWARD, 255);
-  // analogWrite(MOTOR_RIGHT_BACKWARD, 255);
-  analogWrite(MOTOR_LEFT_BACKWARD, 175);
-  analogWrite(MOTOR_RIGHT_BACKWARD, 175);
-  delay(250); // Ajustar el tiempo según la distancia
-
-}
-
-void searchForObject() {
-  // Avanzar una distancia fija
-  moveForward();
-  delay(10); // Ajustar el tiempo según la distancia
-  if (isOneDipEnabled()){
-    // Girar para buscar
-    analogWrite(MOTOR_LEFT_FORWARD, velocidad);
-    analogWrite(MOTOR_RIGHT_BACKWARD, 0);
-    analogWrite(MOTOR_RIGHT_FORWARD, velocidad);
-    analogWrite(MOTOR_LEFT_BACKWARD, 0);
-  } else {
+  void moveForward() {
+    // analogWrite(MOTOR_LEFT_FORWARD, 255);
+    // analogWrite(MOTOR_RIGHT_FORWARD, 255);
     analogWrite(MOTOR_LEFT_FORWARD, 0);
+    analogWrite(MOTOR_RIGHT_FORWARD, velocidad);
+    analogWrite(MOTOR_RIGHT_BACKWARD, 0);
     analogWrite(MOTOR_LEFT_BACKWARD, velocidad);
-    analogWrite(MOTOR_RIGHT_FORWARD, 0);
-    analogWrite(MOTOR_RIGHT_BACKWARD, velocidad);
   }
-  delay(300); // Ajustar el tiempo según el giro necesario
-  
-  // Detener para reevaluar
-  analogWrite(MOTOR_LEFT_FORWARD, 0);
-  analogWrite(MOTOR_RIGHT_FORWARD, 0);
-  analogWrite(MOTOR_LEFT_BACKWARD, 0);
-  analogWrite(MOTOR_RIGHT_BACKWARD, 0);
-}
+
+  void attackForward() {
+    analogWrite(MOTOR_LEFT_FORWARD, 0);
+    analogWrite(MOTOR_RIGHT_FORWARD, 255);
+    analogWrite(MOTOR_RIGHT_BACKWARD, 0);
+    analogWrite(MOTOR_LEFT_BACKWARD, 255);
+  }
+
+  void moveBackward() {
+    analogWrite(MOTOR_LEFT_FORWARD, 0);
+    analogWrite(MOTOR_RIGHT_FORWARD, 0);
+    // analogWrite(MOTOR_LEFT_BACKWARD, 255);
+    // analogWrite(MOTOR_RIGHT_BACKWARD, 255);
+    analogWrite(MOTOR_LEFT_BACKWARD, 175);
+    analogWrite(MOTOR_RIGHT_BACKWARD, 175);
+    delay(250);  // Ajustar el tiempo según la distancia
+  }
+
+  void searchForObject() {
+    // Avanzar una distancia fija
+    // moveForward();
+    // delay(50); // Ajustar el tiempo según la distancia
+    if (isOneDipEnabled()) {
+      // Girar para buscar
+      analogWrite(MOTOR_LEFT_FORWARD, 155);
+      analogWrite(MOTOR_RIGHT_BACKWARD, 0);
+      analogWrite(MOTOR_RIGHT_FORWARD, 155);
+      analogWrite(MOTOR_LEFT_BACKWARD, 0);
+    } else {
+      analogWrite(MOTOR_LEFT_FORWARD, 0);
+      analogWrite(MOTOR_LEFT_BACKWARD, 155);
+      analogWrite(MOTOR_RIGHT_FORWARD, 0);
+      analogWrite(MOTOR_RIGHT_BACKWARD, 155);
+    }
+    delay(200);  // Ajustar el tiempo según el giro necesario
+
+    // Detener para reevaluar
+    // analogWrite(MOTOR_LEFT_FORWARD, 0);
+    // analogWrite(MOTOR_RIGHT_FORWARD, 0);
+    // analogWrite(MOTOR_LEFT_BACKWARD, 0);
+    // analogWrite(MOTOR_RIGHT_BACKWARD, 0);
+  }
+
+  void newSearchForObject() {
+    // Gira lentamente mientras verifica si detecta algo
+    for (int i = 0; i < 10; i++) {  // Intentos de búsqueda
+      if (isOneDipEnabled()) {
+        analogWrite(MOTOR_LEFT_FORWARD, 170);
+        analogWrite(MOTOR_RIGHT_FORWARD, 170);
+        analogWrite(MOTOR_LEFT_BACKWARD, 0);
+        analogWrite(MOTOR_RIGHT_BACKWARD, 0);
+      } else {
+        analogWrite(MOTOR_LEFT_FORWARD, 0);
+        analogWrite(MOTOR_RIGHT_FORWARD, 0);
+        analogWrite(MOTOR_LEFT_BACKWARD, 170);
+        analogWrite(MOTOR_RIGHT_BACKWARD, 170);
+      }
+
+      int d = readUltrasonicDistance();
+      if (d <= 30) {
+        Serial.println("¡Objeto detectado durante giro!");
+        return;  // Salir para atacar o avanzar
+      }
+
+      delay(50);  // Breve movimiento
+    }
+
+    // Si después de girar no detecta nada, detenerse un poco
+    stopMotors();
+  }
+
+  void stopMotors() {
+    analogWrite(MOTOR_LEFT_FORWARD, 0);
+    analogWrite(MOTOR_LEFT_BACKWARD, 0);
+    analogWrite(MOTOR_RIGHT_FORWARD, 0);
+    analogWrite(MOTOR_RIGHT_BACKWARD, 0);
+  }
